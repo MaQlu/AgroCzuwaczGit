@@ -13,8 +13,8 @@
 #define LIGHT_SENSOR_PIN 39
 #define LED_PIN 2
 
-const char* ssid = "Polibudzianie";
-const char* password = "Bimber1000";
+const char* ssid = "NieInteresujSieTak";
+const char* password = "NieInteresujSieTak";
 
 const unsigned long SENSOR_READ_INTERVAL = 300000;  // 5 minut
 const unsigned long PUMP_DURATION = 7000;           // 7 sekund
