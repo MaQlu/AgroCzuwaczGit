@@ -1,0 +1,11 @@
+<!-- app/src/main/res/values/strings.xml -->
+<resources>
+    <string name="app_name">AgroCzuwacz</string>
+    <string name="title_activity_main">AgroCzuwacz</string>
+    <string name="moisture_level">Poziom wilgotności</string>
+    <string name="current_moisture">Aktualna wilgotność</string>
+    <string name="desired_moisture">Zadana wilgotność</string>
+    <string name="set_level">Ustaw poziom</string>
+    <string name="water_now">Podlej teraz</string>
+    <string name="auto_watering">Automatyczne podlewanie</string>
+</resources>
