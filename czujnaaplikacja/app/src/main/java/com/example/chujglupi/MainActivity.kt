@@ -23,6 +23,9 @@ import kotlinx.coroutines.launch
 import retrofit2.HttpException
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import com.example.czujnaaplikacja.R
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -84,13 +87,14 @@ fun MoistureControlScreen() {
                 .verticalScroll(rememberScrollState()), // Dodano przewijanie
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = "AgroCzuwacz",
-                style = MaterialTheme.typography.headlineLarge.copy(
-                    color = Color(0xFF2E7D32),
-                    fontWeight = FontWeight.Bold
-                ),
-                modifier = Modifier.padding(bottom = 24.dp)
+            // Zastąpienie napisu logo
+            Image(
+                painter = painterResource(id = R.drawable.logo_agroczuwacz), // Upewnij się, że nazwa pliku jest poprawna
+                contentDescription = "Logo AgroCzuwacz",
+                modifier = Modifier
+                    .fillMaxWidth() // Dopasowanie szerokości do ekranu
+                    .heightIn(max = 200.dp) // Ograniczenie maksymalnej wysokości
+                    .padding(bottom = 24.dp)
             )
 
             when {
