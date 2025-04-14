@@ -4,41 +4,34 @@ import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.czujnaaplikacja.R
+import com.example.czujnaaplikacja.model.AutoWateringRequest
 import com.example.czujnaaplikacja.model.MoistureData
 import com.example.czujnaaplikacja.model.MoistureRequest
-import com.example.czujnaaplikacja.model.AutoWateringRequest
 import com.example.czujnaaplikacja.network.RetrofitClient
 import com.example.czujnaaplikacja.ui.theme.AgroCzuwaczTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.Image
-import androidx.compose.ui.res.painterResource
-import com.example.czujnaaplikacja.R
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            AgroCzuwaczTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    MoistureControlScreen()
-                }
-            }
+            MoistureControlScreen()
         }
     }
 }
@@ -50,6 +43,7 @@ fun MoistureControlScreen() {
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var autoWateringEnabled by remember { mutableStateOf(false) }
+    var isDarkTheme by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -76,126 +70,138 @@ fun MoistureControlScreen() {
         }
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()), // Dodano przewijanie
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Zastąpienie napisu logo
-            Image(
-                painter = painterResource(id = R.drawable.logo_agroczuwacz), // Upewnij się, że nazwa pliku jest poprawna
-                contentDescription = "Logo AgroCzuwacz",
+    AgroCzuwaczTheme(darkTheme = isDarkTheme) {
+        Scaffold(
+            snackbarHost = { SnackbarHost(snackbarHostState) }
+        ) { padding ->
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth() // Dopasowanie szerokości do ekranu
-                    .heightIn(max = 200.dp) // Ograniczenie maksymalnej wysokości
-                    .padding(bottom = 24.dp)
-            )
-
-            when {
-                isLoading -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(modifier = Modifier.size(48.dp))
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Przycisk przełączania trybu ciemnego
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = if (isDarkTheme) "Tryb ciemny" else "Tryb jasny",
+                            fontSize = 16.sp
+                        )
+                        Switch(
+                            checked = isDarkTheme,
+                            onCheckedChange = { isDarkTheme = it },
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
                     }
                 }
-                sensorData != null -> {
-                    SensorDataCards(sensorData!!)
-                    Spacer(modifier = Modifier.height(24.dp))
 
-                    ControlPanel(
-                        currentMoisture = sensorData!!.soilMoisture,
-                        desiredMoisture = sensorData!!.desiredMoisture,
-                        autoWateringEnabled = autoWateringEnabled,
-                        pumpDuration = sensorData!!.pumpDuration, // Przekazanie aktualnego czasu pompy
-                        onAutoWateringChange = { newState ->
-                            coroutineScope.launch {
-                                try {
-                                    val response = RetrofitClient.apiService.setAutoWatering(
-                                        AutoWateringRequest(newState)
-                                    )
-                                    if (response.isSuccessful) {
-                                        autoWateringEnabled = newState
-                                        snackbarHostState.showSnackbar(
-                                            "Automatyczne podlewanie ${if (newState) "włączone" else "wyłączone"}"
-                                        )
-                                    }
-                                } catch (e: Exception) {
-                                    errorMessage = "Błąd: ${e.message}"
-                                    Log.e("AutoWatering", "Error", e)
-                                }
-                            }
-                        },
-                        onWaterNowClick = {
-                            coroutineScope.launch {
-                                try {
-                                    val response = RetrofitClient.apiService.debugPump()
-                                    if (response.isSuccessful) {
-                                        snackbarHostState.showSnackbar("Zakończono podlewanie")
-                                    }
-                                } catch (e: Exception) {
-                                    errorMessage = "Błąd podlewania: ${e.message}"
-                                    Log.e("Watering", "Error", e)
-                                }
-                            }
-                        },
-                        onSetMoistureClick = { level ->
-                            coroutineScope.launch {
-                                try {
-                                    val response = RetrofitClient.apiService.setDesiredMoisture(
-                                        MoistureRequest(level)
-                                    )
-                                    if (response.isSuccessful) {
-                                        snackbarHostState.showSnackbar(
-                                            "Ustawiono poziom wilgotności na $level"
-                                        )
-                                        fetchData() // Wymuś odświeżenie danych
-                                    } else {
-                                        errorMessage = "Błąd serwera: ${response.code()}"
-                                    }
-                                } catch (e: Exception) {
-                                    errorMessage = "Błąd: ${e.message}"
-                                }
-                            }
-                        },
-                        onSetPumpDurationClick = { duration ->
-                            coroutineScope.launch {
-                                try {
-                                    val response = RetrofitClient.apiService.setPumpDuration(mapOf("duration" to duration))
-                                    if (response.isSuccessful) {
-                                        snackbarHostState.showSnackbar(
-                                            "Ustawiono czas działania pompy na $duration sekund"
-                                        )
-                                    } else {
-                                        errorMessage = "Błąd serwera: ${response.code()}"
-                                    }
-                                } catch (e: Exception) {
-                                    errorMessage = "Błąd: ${e.message}"
-                                }
-                            }
+                // Logo aplikacji
+                Image(
+                    painter = painterResource(id = R.drawable.logo_agroczuwacz),
+                    contentDescription = "Logo AgroCzuwacz",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 200.dp)
+                        .padding(bottom = 24.dp)
+                )
+
+                when {
+                    isLoading -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(modifier = Modifier.size(48.dp))
                         }
-                    )
-                }
-                else -> {
-                    errorMessage?.let { message ->
-                        Text(
-                            text = message,
-                            color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.padding(16.dp)
+                    }
+                    sensorData != null -> {
+                        SensorDataCards(sensorData!!, isDarkTheme = isDarkTheme)
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        ControlPanel(
+                            currentMoisture = sensorData!!.soilMoisture,
+                            desiredMoisture = sensorData!!.desiredMoisture,
+                            autoWateringEnabled = autoWateringEnabled,
+                            pumpDuration = sensorData!!.pumpDuration,
+                            onAutoWateringChange = { enabled ->
+                                coroutineScope.launch {
+                                    try {
+                                        val response = RetrofitClient.apiService.setAutoWatering(AutoWateringRequest(enabled))
+                                        if (response.isSuccessful) {
+                                            snackbarHostState.showSnackbar("Automatyczne podlewanie ${if (enabled) "włączone" else "wyłączone"}")
+                                        } else {
+                                            snackbarHostState.showSnackbar("Błąd: ${response.code()}")
+                                        }
+                                    } catch (e: Exception) {
+                                        snackbarHostState.showSnackbar("Błąd połączenia: ${e.message}")
+                                    }
+                                }
+                            },
+                            onWaterNowClick = {
+                                coroutineScope.launch {
+                                    try {
+                                        val response = RetrofitClient.apiService.waterPlant()
+                                        if (response.isSuccessful) {
+                                            snackbarHostState.showSnackbar("Podlewanie rozpoczęte")
+                                        } else {
+                                            snackbarHostState.showSnackbar("Błąd: ${response.code()}")
+                                        }
+                                    } catch (e: Exception) {
+                                        snackbarHostState.showSnackbar("Błąd połączenia: ${e.message}")
+                                    }
+                                }
+                            },
+                            onSetMoistureClick = { level ->
+                                coroutineScope.launch {
+                                    try {
+                                        val response = RetrofitClient.apiService.setDesiredMoisture(MoistureRequest(level))
+                                        if (response.isSuccessful) {
+                                            snackbarHostState.showSnackbar("Poziom wilgotności ustawiony na $level")
+                                        } else {
+                                            snackbarHostState.showSnackbar("Błąd: ${response.code()}")
+                                        }
+                                    } catch (e: Exception) {
+                                        snackbarHostState.showSnackbar("Błąd połączenia: ${e.message}")
+                                    }
+                                }
+                            },
+                            onSetPumpDurationClick = { duration ->
+                                coroutineScope.launch {
+                                    try {
+                                        val response = RetrofitClient.apiService.setPumpDuration(mapOf("duration" to duration))
+                                        if (response.isSuccessful) {
+                                            snackbarHostState.showSnackbar("Czas działania pompy ustawiony na $duration sekund")
+                                        } else {
+                                            snackbarHostState.showSnackbar("Błąd: ${response.code()}")
+                                        }
+                                    } catch (e: Exception) {
+                                        snackbarHostState.showSnackbar("Błąd połączenia: ${e.message}")
+                                    }
+                                }
+                            }
                         )
-                    } ?: run {
-                        Text(
-                            text = "Brak danych z czujników",
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                            modifier = Modifier.padding(16.dp)
-                        )
+                    }
+                    else -> {
+                        errorMessage?.let { message ->
+                            Text(
+                                text = message,
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.padding(16.dp)
+                            )
+                        } ?: run {
+                            Text(
+                                text = "Brak danych z czujników",
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                modifier = Modifier.padding(16.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -204,7 +210,7 @@ fun MoistureControlScreen() {
 }
 
 @Composable
-private fun SensorDataCards(data: MoistureData) {
+private fun SensorDataCards(data: MoistureData, isDarkTheme: Boolean) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -214,7 +220,8 @@ private fun SensorDataCards(data: MoistureData) {
             title = "Temperatura",
             value = "%.1f".format(data.temperature),
             unit = "°C",
-            color = Color(0xFFD32F2F)
+            color = Color(0xFFD32F2F),
+            isDarkTheme = isDarkTheme
         )
 
         SensorDataCard(
@@ -222,7 +229,8 @@ private fun SensorDataCards(data: MoistureData) {
             title = "Wilgotność powietrza",
             value = "%.1f".format(data.airHumidity),
             unit = "%",
-            color = Color(0xFF1976D2)
+            color = Color(0xFF1976D2),
+            isDarkTheme = isDarkTheme
         )
 
         SensorDataCard(
@@ -230,7 +238,8 @@ private fun SensorDataCards(data: MoistureData) {
             title = "Wilgotność gleby",
             value = "${data.soilMoisture}",
             unit = "",
-            color = Color(0xFF388E3C)
+            color = Color(0xFF388E3C),
+            isDarkTheme = isDarkTheme
         )
 
         SensorDataCard(
@@ -238,10 +247,10 @@ private fun SensorDataCards(data: MoistureData) {
             title = "Poziom światła",
             value = "${data.lightLevel}",
             unit = "lx",
-            color = Color(0xFFFFA000)
+            color = Color(0xFFFFA000),
+            isDarkTheme = isDarkTheme
         )
 
-        // Dodana informacja o dacie ostatniej aktualizacji
         Text(
             text = "🕒 Ostatnia aktualizacja: ${data.fullDate}",
             style = MaterialTheme.typography.bodySmall,
@@ -257,11 +266,14 @@ private fun SensorDataCard(
     title: String,
     value: String,
     unit: String,
-    color: Color
+    color: Color,
+    isDarkTheme: Boolean
 ) {
+    val textColor = if (isDarkTheme) Color.Black else color
+
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9))
+        colors = CardDefaults.cardColors(containerColor = if (isDarkTheme) Color(0xFFB0BEC5) else Color(0xFFE8F5E9))
     ) {
         Column(
             modifier = Modifier
@@ -281,7 +293,7 @@ private fun SensorDataCard(
                 Text(
                     value,
                     style = MaterialTheme.typography.headlineMedium.copy(
-                        color = color,
+                        color = textColor,
                         fontWeight = FontWeight.Bold
                     )
                 )
@@ -289,7 +301,7 @@ private fun SensorDataCard(
                     Text(
                         unit,
                         style = MaterialTheme.typography.bodyLarge.copy(
-                            color = color.copy(alpha = 0.8f)
+                            color = textColor.copy(alpha = 0.8f)
                         ),
                         modifier = Modifier.padding(bottom = 4.dp, start = 2.dp)
                     )
@@ -311,30 +323,23 @@ private fun ControlPanel(
     onSetPumpDurationClick: (Int) -> Unit
 ) {
     var newPumpDuration by remember { mutableStateOf("") }
-    var currentLevel by remember { mutableStateOf(desiredMoisture) } // Zadany poziom wilgotności
+    var currentLevel by remember { mutableStateOf(desiredMoisture) }
 
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Wyświetlenie aktualnego poziomu wilgotności
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = "Aktualna wilgotność: $currentMoisture",
-                fontSize = 16.sp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
-            )
-            Text(
                 text = "Zadana wilgotność: $desiredMoisture",
                 fontSize = 16.sp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                color = MaterialTheme.colorScheme.primary,
             )
         }
 
-        // Suwak do ustawiania poziomu wilgotności
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -353,7 +358,6 @@ private fun ControlPanel(
             )
         }
 
-        // Przycisk do ustawiania poziomu wilgotności
         Button(
             onClick = { onSetMoistureClick(currentLevel) },
             modifier = Modifier.fillMaxWidth(),
@@ -364,7 +368,6 @@ private fun ControlPanel(
             Text("Ustaw poziom wilgotności")
         }
 
-        // Przełącznik do włączania/wyłączania automatycznego podlewania
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
@@ -387,7 +390,6 @@ private fun ControlPanel(
             )
         }
 
-        // Wyświetlenie aktualnego czasu działania pompy
         Text(
             text = "Aktualny czas działania pompy: $pumpDuration sekund",
             fontSize = 16.sp,
@@ -395,7 +397,6 @@ private fun ControlPanel(
             modifier = Modifier.padding(vertical = 8.dp)
         )
 
-        // Pole tekstowe do wpisania nowego czasu działania pompy
         OutlinedTextField(
             value = newPumpDuration,
             onValueChange = { newPumpDuration = it },
@@ -404,7 +405,6 @@ private fun ControlPanel(
             singleLine = true
         )
 
-        // Przycisk "Ustaw Czas"
         Button(
             onClick = {
                 val duration = newPumpDuration.toIntOrNull()

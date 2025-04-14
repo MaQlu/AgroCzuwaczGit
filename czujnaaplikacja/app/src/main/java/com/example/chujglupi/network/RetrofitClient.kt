@@ -14,7 +14,7 @@ import retrofit2.http.*
 import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
-    private const val BASE_URL = "http://192.168.0.94/"
+    private const val BASE_URL = "http://192.168.11.231/"
 
     private val moshi = Moshi.Builder()
         .add(KotlinJsonAdapterFactory())
